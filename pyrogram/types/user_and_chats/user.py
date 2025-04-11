@@ -140,6 +140,9 @@ class User(Object, Update):
             The list of reasons why this bot might be unavailable to some users.
             This field is available only in case *is_restricted* is True.
 
+        full_name (``str``, *optional*):
+            User's or bot's full name.
+
         mention (``str``, *property*):
             Generate a text mention for this user.
             You can use ``user.mention()`` to mention the user using their first name (styled using html), or
@@ -204,6 +207,10 @@ class User(Object, Update):
         self.restrictions = restrictions
 
     @property
+    def full_name(self) -> str:
+        return " ".join(filter(None, [self.first_name, self.last_name])) or None
+
+    @property
     def mention(self):
         return Link(
             f"tg://user?id={self.id}",
@@ -215,6 +222,14 @@ class User(Object, Update):
     def _parse(client, user: "raw.base.User") -> Optional["User"]:
         if user is None or isinstance(user, raw.types.UserEmpty):
             return None
+
+        user_name = user.username if user.username else None
+
+        if user_name is None:
+            for username in user.usernames:
+                if username.active:
+                    user_name = username.username
+                    break
 
         return User(
             id=user.id,
@@ -232,7 +247,7 @@ class User(Object, Update):
             first_name=user.first_name,
             last_name=user.last_name,
             **User._parse_status(user.status, user.bot),
-            username=user.username,
+            username=user_name,
             language_code=user.lang_code,
             emoji_status=types.EmojiStatus._parse(client, user.emoji_status),
             dc_id=getattr(user.photo, "dc_id", None),
